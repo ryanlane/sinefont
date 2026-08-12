@@ -1,5 +1,5 @@
 import type { GlyphDef, GlyphInstance } from './types';
-import { HARMONICS, padCoeffs } from './types';
+import { HARMONICS, padCoeffs, SPACE_GLYPH } from './types';
 import { lookupGlyph } from './glyphs';
 
 const SAMPLES_PER_GLYPH = 36;
@@ -19,9 +19,9 @@ export function glyphXY(coeffsX: number[], coeffsY: number[], advance: number, t
   return { x, y };
 }
 
-export function parseText(text: string): GlyphInstance[] {
+export function parseText(text: string, glyphs?: Record<string, GlyphDef>): GlyphInstance[] {
   return Array.from(text).map((ch) => {
-    const g: GlyphDef = lookupGlyph(ch);
+    const g: GlyphDef = glyphs ? glyphs[ch.toLowerCase()] ?? SPACE_GLYPH : lookupGlyph(ch);
     return {
       advance: g.advance,
       coeffsX: padCoeffs(g.coeffsX),

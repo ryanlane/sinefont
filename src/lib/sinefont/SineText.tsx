@@ -6,12 +6,18 @@ import {
   parseText,
   totalWidth,
 } from './path';
-import type { GlyphInstance } from './types';
+import type { GlyphDef, GlyphInstance } from './types';
 import { BASELINE_Y, UNITS_PER_EM } from './layout';
 
 export interface SineTextProps {
   /** the word/phrase to render -- change it any time, it will morph smoothly */
   text: string;
+  /**
+   * A custom font to render with, as a `{letter: GlyphDef}` map -- see `loadGlyphFont` to load one
+   * from a JSON file (e.g. one downloaded from the glyph editor), or build one yourself. Falls
+   * back to sinefont's own built-in alphabet if omitted.
+   */
+  glyphs?: Record<string, GlyphDef>;
   /** font size in px; internally the glyphs live on a fixed-height em square (see layout.ts) */
   fontSize?: number;
   /** stroke color */
@@ -32,6 +38,7 @@ const MARGIN = 20;
 
 export function SineText({
   text,
+  glyphs,
   fontSize = 96,
   color = 'currentColor',
   strokeWidth = 4,
@@ -44,7 +51,7 @@ export function SineText({
   style,
 }: SineTextProps) {
   const pathRef = useRef<SVGPathElement>(null);
-  const targetRef = useRef<GlyphInstance[]>(parseText(text));
+  const targetRef = useRef<GlyphInstance[]>(parseText(text, glyphs));
   const morphStartRef = useRef<number>(performance.now());
   const morphFromRef = useRef<GlyphInstance[]>(targetRef.current);
 
@@ -56,7 +63,7 @@ export function SineText({
     Math.max(totalWidth(targetRef.current, letterSpacing), 1) + MARGIN * 2
   );
 
-  // text changed: snapshot whatever is currently on screen as the new morph start
+  // text (or the font itself) changed: snapshot whatever is currently on screen as the new morph start
   useEffect(() => {
     const now = performance.now();
     const elapsed = now - morphStartRef.current;
@@ -64,7 +71,7 @@ export function SineText({
     const [prevAligned, nextAligned] = alignInstances(morphFromRef.current, targetRef.current);
     morphFromRef.current = lerpInstances(prevAligned, nextAligned, t);
 
-    targetRef.current = parseText(text);
+    targetRef.current = parseText(text, glyphs);
     morphStartRef.current = now;
 
     const w = Math.max(
@@ -74,7 +81,7 @@ export function SineText({
     );
     setViewBoxWidth(w + MARGIN * 2);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [text]);
+  }, [text, glyphs]);
 
   useEffect(() => {
     let raf = 0;
