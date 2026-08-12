@@ -1,0 +1,57 @@
+import type { GlyphDef } from './types';
+import { SPACE_GLYPH } from './types';
+import { clearStoredGlyphs, loadStoredGlyphs, saveStoredGlyphs } from './storage';
+
+/**
+ * Seed alphabet. Deliberately small (enough to spell "hello", "wave", "sine", "shine", "oasis"...).
+ * These are starting points, not final letterforms -- draw better ones in the glyph editor tool
+ * (the "Glyph Editor" tab) and paste the exported object back in here. `coeffsX` is empty on all
+ * of these, meaning they're plain left-to-right strokes with no loop-back; letters like "a" or "o"
+ * want a real loop and are much easier to get by drawing than by hand-editing coeffsX.
+ */
+const SEED_GLYPHS: Record<string, GlyphDef> = {
+  a: { advance: 60, coeffsX: [], coeffsY: [0, 24, 0, -6, 0, 0] },
+  e: { advance: 60, coeffsX: [], coeffsY: [10, 0, 16, 0, 0, 0] },
+  f: { advance: 46, coeffsX: [], coeffsY: [34, 0, -6, 0, 0, 0], marks: [{ type: 'bar', x1: 6, y1: 28, x2: 34, y2: 28 }] },
+  h: { advance: 78, coeffsX: [], coeffsY: [40, 0, -10, 0, 4, 0] },
+  i: { advance: 34, coeffsX: [], coeffsY: [16, 0, 4, 0, 0, 0], marks: [{ type: 'dot', x: 17, y: 36 }] },
+  j: { advance: 40, coeffsX: [], coeffsY: [-10, 0, -16, 0, 0, 0], marks: [{ type: 'dot', x: 20, y: 38 }] },
+  l: { advance: 46, coeffsX: [], coeffsY: [42, 0, 0, 0, 0, 0] },
+  n: { advance: 66, coeffsX: [], coeffsY: [0, -24, 0, -8, 0, 0] },
+  o: { advance: 62, coeffsX: [], coeffsY: [0, 28, 0, 6, 0, 0] },
+  s: { advance: 58, coeffsX: [], coeffsY: [0, 22, 0, 12, 0, 0] },
+  t: { advance: 44, coeffsX: [], coeffsY: [30, 0, 0, 0, 0, 0], marks: [{ type: 'bar', x1: 8, y1: 30, x2: 36, y2: 30 }] },
+  v: { advance: 56, coeffsX: [], coeffsY: [0, -18, 0, 10, 0, 0] },
+  w: { advance: 84, coeffsX: [], coeffsY: [0, 0, 24, 0, 10, 0] },
+};
+
+/**
+ * The live glyph table: the seed alphabet above, overlaid with whatever's saved in this browser's
+ * localStorage (see storage.ts) so edits made in the glyph editor survive a page refresh. Mutated
+ * in place by `syncGlyphs`/`resetGlyphs` rather than reassigned, so every module holding a
+ * reference to it (the editor, SineText's rendering) sees the same live object.
+ */
+export const GLYPHS: Record<string, GlyphDef> = {
+  ...SEED_GLYPHS,
+  ...(loadStoredGlyphs() ?? {}),
+  ' ': SPACE_GLYPH,
+};
+
+export function lookupGlyph(char: string): GlyphDef {
+  return GLYPHS[char.toLowerCase()] ?? SPACE_GLYPH;
+}
+
+/** Writes a full set of letter -> glyph edits into the live table and persists them. */
+export function syncGlyphs(edits: Record<string, GlyphDef>): void {
+  Object.assign(GLYPHS, edits);
+  saveStoredGlyphs(GLYPHS);
+}
+
+/** Drops all locally-saved edits and restores the seed alphabet. */
+export function resetGlyphs(): void {
+  for (const letter of Object.keys(GLYPHS)) {
+    if (letter !== ' ') delete GLYPHS[letter];
+  }
+  Object.assign(GLYPHS, SEED_GLYPHS);
+  clearStoredGlyphs();
+}
