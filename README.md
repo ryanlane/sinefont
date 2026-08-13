@@ -135,6 +135,13 @@ This emits `dist/sinefont.mjs` (ESM), `dist/sinefont.cjs` (CJS), and type
 declarations, which is what actually ships to npm (see the `files` field in
 `package.json`).
 
+## Inspiration
+
+Inspired by Zanzlanz's ["How I released a game that has no assets"](https://www.youtube.com/watch?v=Qr3VsZYQy4s) —
+the idea of generating everything from pure math instead of hand-authored
+assets carried straight over into building a font out of nothing but sine
+waves.
+
 ## License
 
 MIT
