@@ -1,7 +1,7 @@
 {
   "name": "sinefont",
-  "version": "0.1.0",
-  "description": "A 100% sine-wave-generated cursive React font component -- draw letters as pendulum-like harmonics that smoothly wiggle and morph between words.",
+  "version": "0.1.1",
+  "description": "A cursive React font made entirely of sine waves -- animated glyphs that wiggle and morph between words, plus a built-in tool to draw your own alphabet.",
   "type": "module",
   "license": "MIT",
   "repository": {
