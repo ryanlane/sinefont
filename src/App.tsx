@@ -85,7 +85,9 @@ function App() {
 
   return (
     <div style={{ padding: '24px 24px 64px', textAlign: 'left' }}>
-      <h1 style={{ textAlign: 'center' }}>sinefont</h1>
+      <h1 style={{ display: 'flex', justifyContent: 'center', margin: '32px 0' }}>
+        <SineText text="sinefont" fontSize={64} strokeWidth={4} color="var(--text-h)" />
+      </h1>
       <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 32 }}>
         <button
           onClick={() => setTab('demo')}
