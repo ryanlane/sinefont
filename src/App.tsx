@@ -83,6 +83,16 @@ function App() {
 
   if (!glyphsReady) return null;
 
+  // an isolated, chrome-free render of just the logo -- for generating a clean hero screenshot
+  // (see scripts/screenshot.cjs), not part of the normal app UI
+  if (new URLSearchParams(window.location.search).has('bare')) {
+    return (
+      <div style={{ display: 'inline-block', alignSelf: 'center', padding: 40, background: '#111', borderRadius: 16 }}>
+        <SineText text="sinefont" fontSize={220} strokeWidth={6} color="#7dd3fc" animate wiggleAmount={2} />
+      </div>
+    );
+  }
+
   return (
     <div style={{ padding: '24px 24px 64px', textAlign: 'left' }}>
       <h1 style={{ display: 'flex', justifyContent: 'center', margin: '32px 0' }}>
