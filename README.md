@@ -5,6 +5,10 @@ A cursive React font that's 100% sine waves. Every glyph is a parametric curve �
 swinging together — so letters can loop, animate with a gentle idle wiggle, and
 morph smoothly from one word to the next.
 
+![sinefont rendering the word "sinefont" in animated cursive](./screenshots/demo-hero.png)
+
+**[Live demo →](https://ryanlane.github.io/sinefont/)**
+
 ```tsx
 import { SineText } from 'sinefont';
 
@@ -101,6 +105,8 @@ export default function App() {
 This repo is also the font-drawing tool. Clone it, run the app, and use the
 "Glyph Editor" tab to draw letters by hand (freehand strokes get fitted to sine
 harmonics automatically), preview them animated, and export:
+
+![The glyph editor: a hand-drawn "g" with its faint reference letter, the fitted sine-wave reconstruction, and a live word preview](./screenshots/editor.png)
 
 ```sh
 git clone https://github.com/ryanlane/sinefont.git
