@@ -14,9 +14,17 @@ const OUT = path.join(__dirname, '..', 'screenshots');
     await page.goto('http://localhost:5183/', { waitUntil: 'networkidle' });
     await page.fill('input[placeholder*="type any word"]', 'sinefont');
     await page.waitForTimeout(1100);
-    const box = await page.$eval('svg', (svg) => {
-      const containerR = svg.closest('div').getBoundingClientRect();
-      const pathR = svg.querySelector('path').getBoundingClientRect();
+    // pick the widest <svg> on the page (the Demo canvas), not the header logo's svg -- compare
+    // the svgs' own rects, not an ancestor <div>'s, since closest('div') over-traverses past the
+    // header's non-div <h1> wrapper and lands on the same full-width outer container for both
+    const box = await page.$$eval('svg', (svgs) => {
+      let widest = null;
+      for (const svg of svgs) {
+        const r = svg.getBoundingClientRect();
+        if (!widest || r.width > widest.r.width) widest = { svg, r };
+      }
+      const containerR = widest.svg.parentElement.getBoundingClientRect();
+      const pathR = widest.svg.querySelector('path').getBoundingClientRect();
       const pad = 36;
       return {
         x: containerR.x,
