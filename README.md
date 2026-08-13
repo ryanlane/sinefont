@@ -71,6 +71,8 @@ of popping.
 | `wiggleAmount`  | `number`                  | `3`             | Wiggle strength.                                                     |
 | `wiggleSpeed`   | `number`                  | `1`             | Wiggle speed.                                                        |
 | `morphDuration` | `number`                  | `600`           | Milliseconds to morph from the previous word to a new one.          |
+| `sizeJitter`    | `number`                  | `0`             | Randomly varies each letter's size by up to this fraction (0-1), re-rolled whenever `text` changes -- so repeated letters don't come out identical, like a real hand. |
+| `baselineJitter`| `number`                  | `0`             | Amplitude (font units) of a gentle random wave the line sits on instead of a straight baseline, re-rolled whenever `text` changes. |
 | `className`     | `string`                  | —               | Passed to the underlying `<svg>`.                                    |
 | `style`         | `React.CSSProperties`     | —               | Passed to the underlying `<svg>`.                                    |
 

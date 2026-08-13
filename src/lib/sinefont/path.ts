@@ -32,6 +32,36 @@ export function parseText(text: string, glyphs?: Record<string, GlyphDef>): Glyp
   });
 }
 
+/**
+ * Randomly scales each letter's size (advance + harmonic amplitudes together, so shape stays
+ * proportional) by up to +/-`amount` (0..1). Safe for continuity: every glyph already returns to
+ * exactly (0, 0)/(advance, 0) at its own boundaries regardless of amplitude, so scaling one letter
+ * independently from its neighbors never leaves a gap -- it just makes that letter a genuinely
+ * different (still self-consistent) size, the way a hand varies letter size within a word.
+ */
+export function jitterSize(
+  instances: GlyphInstance[],
+  amount: number,
+  rng: () => number = Math.random
+): GlyphInstance[] {
+  if (amount <= 0) return instances;
+  return instances.map((g) => {
+    if (g.isSpace || g.advance <= 0.01) return g;
+    const scale = 1 + (rng() * 2 - 1) * amount;
+    return {
+      ...g,
+      advance: g.advance * scale,
+      coeffsX: g.coeffsX.map((c) => c * scale),
+      coeffsY: g.coeffsY.map((c) => c * scale),
+      marks: g.marks?.map((m) =>
+        m.type === 'dot'
+          ? { ...m, x: m.x * scale, y: m.y * scale }
+          : { ...m, x1: m.x1 * scale, y1: m.y1 * scale, x2: m.x2 * scale, y2: m.y2 * scale }
+      ),
+    };
+  });
+}
+
 export function totalWidth(instances: GlyphInstance[], letterSpacing: number): number {
   if (instances.length === 0) return 0;
   return instances.reduce((sum, g) => sum + g.advance, 0) + letterSpacing * (instances.length - 1);
@@ -89,6 +119,20 @@ export interface WiggleParams {
   speed: number;
 }
 
+/** A gentle wave the whole line of text sits on, instead of a dead-straight baseline -- evaluated
+ * as one continuous function of each sample's absolute x position, so it never introduces gaps
+ * between letters (unlike per-letter jitter, which can't touch the baseline without breaking
+ * continuity). frequency/phase are normally randomized once per text, not per frame. */
+export interface BaselineWaveParams {
+  amplitude: number;
+  frequency: number;
+  phase: number;
+}
+
+function baselineWaveAt(x: number, wave: BaselineWaveParams | undefined): number {
+  return wave ? wave.amplitude * Math.sin(x * wave.frequency + wave.phase) : 0;
+}
+
 /**
  * Nudges each harmonic's amplitude over time. Weighted so low harmonics (broad, gentle sway)
  * move the most and high harmonics (fine detail, sharp corners) barely move at all -- otherwise,
@@ -142,9 +186,9 @@ function smoothPath(points: { x: number; y: number }[]): string {
  */
 export function buildWordPath(
   instances: GlyphInstance[],
-  opts: { letterSpacing: number; baselineY: number; wiggle?: WiggleParams }
+  opts: { letterSpacing: number; baselineY: number; wiggle?: WiggleParams; baseline?: BaselineWaveParams }
 ): string {
-  const { letterSpacing, baselineY, wiggle } = opts;
+  const { letterSpacing, baselineY, wiggle, baseline } = opts;
   let cursorX = 0;
   let currentRun: { x: number; y: number }[] = [];
   const subpaths: string[] = [];
@@ -165,15 +209,19 @@ export function buildWordPath(
     for (let s = 0; s <= SAMPLES_PER_GLYPH; s++) {
       const t = s / SAMPLES_PER_GLYPH;
       const { x: localX, y: localY } = glyphXY(coeffsX, coeffsY, glyph.advance, t);
-      currentRun.push({ x: cursorX + localX, y: baselineY - localY });
+      const absX = cursorX + localX;
+      currentRun.push({ x: absX, y: baselineY - localY - baselineWaveAt(absX, baseline) });
     }
     const bob = wiggle ? wiggle.amount * 0.3 * Math.sin(wiggle.time * wiggle.speed * 2.2 + 0.7) : 0;
     for (const mark of glyph.marks ?? []) {
       if (mark.type === 'dot') {
-        subpaths.push(circleSubpath(cursorX + mark.x, baselineY - mark.y - bob, DOT_RADIUS));
+        const dotDrift = baselineWaveAt(cursorX + mark.x, baseline);
+        subpaths.push(circleSubpath(cursorX + mark.x, baselineY - mark.y - bob - dotDrift, DOT_RADIUS));
       } else {
+        const drift1 = baselineWaveAt(cursorX + mark.x1, baseline);
+        const drift2 = baselineWaveAt(cursorX + mark.x2, baseline);
         subpaths.push(
-          `M ${cursorX + mark.x1} ${baselineY - mark.y1 - bob} L ${cursorX + mark.x2} ${baselineY - mark.y2 - bob}`
+          `M ${cursorX + mark.x1} ${baselineY - mark.y1 - bob - drift1} L ${cursorX + mark.x2} ${baselineY - mark.y2 - bob - drift2}`
         );
       }
     }

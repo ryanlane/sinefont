@@ -2,10 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import {
   alignInstances,
   buildWordPath,
+  jitterSize,
   lerpInstances,
   parseText,
   totalWidth,
 } from './path';
+import type { BaselineWaveParams } from './path';
 import type { GlyphDef, GlyphInstance } from './types';
 import { BASELINE_Y, UNITS_PER_EM } from './layout';
 
@@ -30,11 +32,27 @@ export interface SineTextProps {
   wiggleAmount?: number;
   /** ms to morph from the previous word to a new one */
   morphDuration?: number;
+  /**
+   * Randomly varies each letter's size by up to this fraction (0..1) so identical letters don't
+   * come out identical -- e.g. 0.15 lets a letter render anywhere from 85% to 115% of its normal
+   * size. Re-rolled fresh whenever `text` (or this prop) changes. Default 0 (off).
+   */
+  sizeJitter?: number;
+  /**
+   * Amplitude (in font units) of a gentle random wave the whole line sits on instead of a
+   * dead-straight baseline, like natural handwriting drift. Frequency/phase are re-rolled fresh
+   * whenever `text` (or this prop) changes. Default 0 (off).
+   */
+  baselineJitter?: number;
   className?: string;
   style?: React.CSSProperties;
 }
 
 const MARGIN = 20;
+
+function randomWave(amplitude: number): BaselineWaveParams {
+  return { amplitude, frequency: 0.012 + Math.random() * 0.02, phase: Math.random() * Math.PI * 2 };
+}
 
 export function SineText({
   text,
@@ -47,23 +65,27 @@ export function SineText({
   wiggleSpeed = 1,
   wiggleAmount = 3,
   morphDuration = 600,
+  sizeJitter = 0,
+  baselineJitter = 0,
   className,
   style,
 }: SineTextProps) {
   const pathRef = useRef<SVGPathElement>(null);
-  const targetRef = useRef<GlyphInstance[]>(parseText(text, glyphs));
+  const targetRef = useRef<GlyphInstance[]>(jitterSize(parseText(text, glyphs), sizeJitter));
   const morphStartRef = useRef<number>(performance.now());
   const morphFromRef = useRef<GlyphInstance[]>(targetRef.current);
+  const baselineWaveRef = useRef<BaselineWaveParams>(randomWave(baselineJitter));
 
   // live props, read from the persistent RAF loop without restarting it
-  const liveRef = useRef({ animate, wiggleSpeed, wiggleAmount, morphDuration, letterSpacing });
-  liveRef.current = { animate, wiggleSpeed, wiggleAmount, morphDuration, letterSpacing };
+  const liveRef = useRef({ animate, wiggleSpeed, wiggleAmount, morphDuration, letterSpacing, baselineJitter });
+  liveRef.current = { animate, wiggleSpeed, wiggleAmount, morphDuration, letterSpacing, baselineJitter };
 
   const [viewBoxWidth, setViewBoxWidth] = useState(() =>
     Math.max(totalWidth(targetRef.current, letterSpacing), 1) + MARGIN * 2
   );
 
-  // text (or the font itself) changed: snapshot whatever is currently on screen as the new morph start
+  // text, font, or jitter settings changed: snapshot whatever is currently on screen as the new
+  // morph start, and re-roll a fresh randomization for the new target
   useEffect(() => {
     const now = performance.now();
     const elapsed = now - morphStartRef.current;
@@ -71,7 +93,8 @@ export function SineText({
     const [prevAligned, nextAligned] = alignInstances(morphFromRef.current, targetRef.current);
     morphFromRef.current = lerpInstances(prevAligned, nextAligned, t);
 
-    targetRef.current = parseText(text, glyphs);
+    targetRef.current = jitterSize(parseText(text, glyphs), sizeJitter);
+    baselineWaveRef.current = randomWave(baselineJitter);
     morphStartRef.current = now;
 
     const w = Math.max(
@@ -81,13 +104,13 @@ export function SineText({
     );
     setViewBoxWidth(w + MARGIN * 2);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [text, glyphs]);
+  }, [text, glyphs, sizeJitter, baselineJitter]);
 
   useEffect(() => {
     let raf = 0;
 
     const tick = (now: number) => {
-      const { animate, wiggleSpeed, wiggleAmount, morphDuration, letterSpacing } = liveRef.current;
+      const { animate, wiggleSpeed, wiggleAmount, morphDuration, letterSpacing, baselineJitter } = liveRef.current;
       const t = Math.min(1, Math.max(0, (now - morphStartRef.current) / morphDuration));
       const [prevAligned, nextAligned] = alignInstances(morphFromRef.current, targetRef.current);
       const current = lerpInstances(prevAligned, nextAligned, t);
@@ -98,6 +121,7 @@ export function SineText({
         wiggle: animate
           ? { time: now / 1000, amount: wiggleAmount, speed: wiggleSpeed }
           : undefined,
+        baseline: baselineJitter > 0 ? { ...baselineWaveRef.current, amplitude: baselineJitter } : undefined,
       });
 
       if (pathRef.current) pathRef.current.setAttribute('d', d);
